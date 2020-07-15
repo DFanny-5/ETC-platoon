@@ -458,10 +458,10 @@ class CarRacing(gym.Env, EzPickle):
                     #print('Speed reward is',reward_same_velocity)
                     #print('Accelatration is ', reward_acceleration)
                     #print('Action reward is', reward_action)
-                    total_reward = (float(reward_same_velocity + reward_acceleration + reward_desire_distance+reward_action)/100) + self.life_stay_reward
+                    total_reward = (float(reward_same_velocity + reward_acceleration + reward_desire_distance+reward_action)/100) 
                     
                     self.reward -= total_reward
-                    
+                    self.reward += self.life_stay_reward
                     #reward_time_spent += 0.1 #reward/panalty for enery frame
                     # We actually don't want to count fuel spent, we want car to be faster.
                     # self.reward -=  10 * self.car.fuel_spent / ENGINE_POWER
