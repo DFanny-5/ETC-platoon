@@ -1,30 +1,4 @@
 """
-
-Easiest continuous control task to learn from pixels, a top-down racing environment.
-Discrete control is reasonable in this environment as well, on/off discretization is
-fine.
-
-State consists of STATE_W x STATE_H pixels.
-
-The reward is -0.1 every frame and +1000/N for every track tile visited, where N is
-the total number of tiles visited in the track. For example, if you have finished in 732 frames,
-your reward is 1000 - 0.1*732 = 926.8 points.
-
-The game is solved when the agent consistently gets 900+ points. The generated track is random every episode.
-
-The episode finishes when all the tiles are visited. The car also can go outside of the PLAYFIELD -  that
-is far off the track, then it will get -100 and die.
-
-Some indicators are shown at the bottom of the window along with the state RGB buffer. From
-left to right: the true speed, four ABS sensors, the steering wheel position and gyroscope.
-
-To play yourself (it's rather fast for humans), type:
-
-python gym/envs/box2d/car_racing.py
-
-Remember it's a powerful rear-wheel drive car -  don't press the accelerator and turn at the
-same time.
-
 Created by Oleg Klimov. Licensed on the same terms as the rest of OpenAI Gym.
 """
 
@@ -61,12 +35,12 @@ ZOOM_FOLLOW = False
 number_agent = 2
 degree_d = 20
 max_road = 1000000
+set_distance = np.random.randint(19,high = 21,size = 1)#random initial distance -7
 
 
-
-desire_distance = 20
-initial_distance_apart = 50
-
+desire_distance = 13
+#initial_distance_apart = 15 #constact distance
+initial_distance_apart = np.random.randint(19,high = 21,size = 1)#4-7
 TRACK_DETAIL_STEP = 21/SCALE
 TRACK_TURN_RATE = 0.31
 TRACK_WIDTH = 40/SCALE
@@ -132,6 +106,7 @@ class CarRacing(gym.Env, EzPickle):
         self.invisible_video_window = None
         self.road = None
         self.car = None
+        
         
         #reward part:
         reward_same_velocity = 0
@@ -332,6 +307,7 @@ class CarRacing(gym.Env, EzPickle):
         return True
 
     def reset(self):
+        initial_distance_apart = set_distance # random initial distance
         print('the time played(total):')
         print('***********************count is ',self.count)
         print(self.time_count)
@@ -357,10 +333,12 @@ class CarRacing(gym.Env, EzPickle):
         for i in range(number_agent):
             num_1 = i*degree_d
             if i == 1:
-                car = Car(self.world,*(0, 225.0, initial_distance_apart))
+                car = Car(self.world,*(0, 225.0, float(initial_distance_apart)))
                 print ('##################################################',self.track[num_1][1:4])
             else:
                 car = Car(self.world, *self.track[num_1][1:4])
+                car.first_frame = True
+                
             print
             if i == 1:######################################set first car or not 
                 
@@ -371,14 +349,14 @@ class CarRacing(gym.Env, EzPickle):
         self.car1 = agent_cars
         #self.car = agent_cars[1]
         #self.car = Car(self.world, *self.track[70][1:4])#original
-        
+        self.first_frame = True
         
         return self.step(None)[0]
 
     def step(self, action):
         self.life_count += 1 #used to count stay alive
         self.current_state_total = []
-        self.state_total=[]###########################################################################
+        self.state_total=[]#used to store the observation of both vehicles in one frame
         car_y_1 = 0  #this is used for the done condition
         car_y_0 = 0
         car_x_1 = 0  #this is used for the done condition
@@ -394,7 +372,7 @@ class CarRacing(gym.Env, EzPickle):
                     car.brake(0)
                 #car.steer(-action[0])
                 else:
-                    if action > 0:
+                    if action >= 0:
                         car.steer(0)
                         car.gas(abs(action))
                         car.brake(0)
@@ -403,12 +381,6 @@ class CarRacing(gym.Env, EzPickle):
                         car.gas(0)
                         car.brake(abs(action))
                 
-            '''original
-            if action is not None:
-            self.car.steer(-action[0])
-            self.car.gas(action[1])
-            self.car.brake(action[2])
-            '''
             #self.car.step(1.0/FPS)#original
             car.step(1.0/FPS)
             self.world.Step(1.0/FPS, 6*30, 2*30)
@@ -418,11 +390,12 @@ class CarRacing(gym.Env, EzPickle):
              
             step_reward = 0
             x_1, y_1 = car.hull.position
+            #print('x_axis is',x_1)
             vr_1 = car.speed
-            if i == 0:#only happen when second car
+            if i == 0:#only happen when following car
                 self.current_state_total = []  #############################################initialize the car  
                 self.state_total = []
-            self.state_total.append(x_1)
+            #self.state_total.append(x_1) #only y axis will be recored becauese it is a linear
             self.state_total.append(y_1)
             self.state_total.append(float(vr_1))
             #if action is not None:                #####to add action ito state
@@ -432,36 +405,43 @@ class CarRacing(gym.Env, EzPickle):
                 #self.state_total.append(self.state)#######################################################
             self.current_state_total.append([x_1,y_1,vr_1])
             
-            #done = False #do not know whether need it because done is false
         for i,car in enumerate(self.car):
-            if i ==0: ################################only second vehicle has reward
+            if i ==0: ################################only second following vehicle has reward
                 car_speed_0 = car.speed
                 if action is not None: # First step without action, called from reset()
                     car_speed_0 = car.speed
-                    reward_desire_distance = 0.5*(abs(abs(self.current_state_total[1][1]-self.current_state_total[0][1])-(desire_distance)))**2 #+1/FPS*abs(10 - car_speed_0)
+                    reward_desire_distance = 8*(abs(abs(self.current_state_total[1][1]-self.current_state_total[0][1])-(desire_distance)))**2 #+1/FPS*abs(10 - car_speed_0)
+                    distance_apart = abs(self.current_state_total[1][1]-self.current_state_total[0][1]) #obs record distance between
+                    self.state_total.append(distance_apart)
                     if (abs(self.current_state_total[1][1]-self.current_state_total[0][1])<desire_distance):####panalty for get too close
-                        self.reward -= 10*float(2*abs(self.current_state_total[1][1]-self.current_state_total[0][1]-desire_distance)/100)**2#collision panalty
+                        #self.reward -= 5*float(2*abs(self.current_state_total[1][1]-self.current_state_total[0][1]-desire_distance))**2#collision panalty
+                        self.reward -= 2000
                         #print('Collision panalty is:',float(2*abs(self.current_state_total[1][1]-self.current_state_total[0][1]-desire_distance)/100)**2)
                         if abs(self.current_state_total[1][1]-self.current_state_total[0][1])< 7:
+                            self.reward -= 5000
                             done = True
-                            #self.reward -= 10000000
+                     
                     if action >= 0:
-                        reward_action = 0.5*abs(action)**2
+                        reward_action = 0.1*abs(action)**2
                     elif action< 0:
                         reward_action = abs(action)**2
                     reward_same_velocity = 0.1*(abs(self.current_state_total[1][2]-self.current_state_total[0][2]))**2
-                    
-                    reward_acceleration = 0.1*(0.02*abs(car.vr_reward[1] - car.vr_reward[0])/(1.0/FPS))**2
-                    
-                    self.life_stay_reward = 100*1/(3001-self.life_count) #encourage to live longer
-                    #print('distance is',reward_desire_distance)
-                    #print('Speed reward is',reward_same_velocity)
-                    #print('Accelatration is ', reward_acceleration)
+                    velocity_apart = abs(self.current_state_total[1][2]-self.current_state_total[0][2])
+                    self.state_total.append(float(velocity_apart))
+                    #reward_acceleration = 0.1*(0.02*abs(car.vr_reward[1] - car.vr_reward[0])/(1.0/FPS))**2
+                    reward_acceleration = 0 
+                    #self.life_stay_reward = 1000*1/(3001-self.life_count) #encourage to live longer
+                    self.life_stay_reward = 0.05 #stay alive reward
+                    print('distance is',reward_desire_distance)
+                    print('Speed reward is',reward_same_velocity)
+                    print('Accelatration is ', reward_acceleration)
                     #print('Action reward is', reward_action)
-                    total_reward = (float(reward_same_velocity + reward_acceleration + reward_desire_distance+reward_action)/100) 
+                    total_reward = (float(reward_same_velocity + reward_acceleration + reward_desire_distance+reward_action/100) )
                     
+                         
+                                    
                     self.reward -= total_reward
-                    self.reward += + self.life_stay_reward
+                    self.reward += self.life_stay_reward
                     
                     #reward_time_spent += 0.1 #reward/panalty for enery frame
                     # We actually don't want to count fuel spent, we want car to be faster.
@@ -474,9 +454,9 @@ class CarRacing(gym.Env, EzPickle):
                     #    done = True
                     #x, y = self.car.hull.position#original
                     car_x_0,car_y_0 =car.hull.position
-                    if car_y_0 < 0.5:
+                    if car_y_0 < -5:
                         done = True
-                        step_reward -= 1000000
+                        step_reward -= 4000
             else:
                 car_x_1,car_y_1 = car.hull.position
                 car_speed_1 = car.speed
@@ -490,21 +470,26 @@ class CarRacing(gym.Env, EzPickle):
                     #    done = True
              '''
             
-        if abs(car_y_1-car_y_0-desire_distance)<7 and abs(car_speed_1-car_speed_0)<10:
-            step_reward += 2500
+        if abs(car_y_1-car_y_0-desire_distance)<0.001 and abs(car_speed_1-car_speed_0)<0.001:
+            step_reward += 4000
             self.count+=1
             print('***********************count is ',self.count)
+        elif abs(car_y_1-car_y_0-desire_distance)<0.001:
+            step_reward += 200
+            self.count = 0 #reset the counter
         else:
-            self.count = 0
             
-        if self.count >=2:
+            self.count = 0 #reset the counter
+            
+        if self.count >=50:
             print('***********************count is ',self.count)
+            step_reward += 20000
             done = True
             
-        #print(self.state_total)
+            print(self.state_total)
         if done: #used for not following case
-            if self.count < 2:
-                step_reward -= 1000000
+            if self.count < 10:
+                step_reward -= 200000
         print ('step reward is ',float(step_reward)) 
         print('action used is',action)
         print(self.state_total)
