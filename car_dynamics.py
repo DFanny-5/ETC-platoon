@@ -12,7 +12,7 @@ import math
 import Box2D
 from collections import deque
 from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revoluteJointDef, contactListener, shape)
-set_speed = 10 #####################the speed of leading vehicle, use bool if lead_vehicle
+set_speed = 10 #speed of leading vehicle, use bool if lead_vehicle
 SIZE = 0.02
 ENGINE_POWER = 100000000*SIZE*SIZE
 WHEEL_MOMENT_OF_INERTIA = 4000*SIZE*SIZE
@@ -67,6 +67,7 @@ class Car:
         self.wheels = []
         self.fuel_spent = 0.0
         self.lead_car = False #############################################lead car or not, initial = false
+        self.first_frame = False
         self.vr_reward = deque([0,0],maxlen = 2 )# used for vr_reward calculation
         WHEEL_POLY = [
             (-WHEEL_W, +WHEEL_R), (+WHEEL_W, +WHEEL_R),
@@ -90,7 +91,8 @@ class Car:
             w.brake = 0.0
             w.steer = 0.0
             w.phase = 0.0  # wheel angle
-            w.omega = 0.0  # angular velocity
+            #w.omega = np.random.uniform((500/27*0.4),(500/27*0.7)) # random speed angular velocity
+            w.omega = 500/27*0.9 #set initial speed
             w.skid_start = None
             w.skid_particle = None
             rjd = revoluteJointDef(
@@ -120,7 +122,7 @@ class Car:
             gas (float): How much gas gets applied. Gets clipped between 0 and 1.
         """
         gas = np.clip(gas, 0, 1)
-        for w in self.wheels[2:4]:
+        for w in self.wheels[0:4]:
             diff = gas - w.gas
             if diff > 0.1: diff = 0.1  # gradually increase, but stop immediately
             w.gas += diff
@@ -131,7 +133,11 @@ class Car:
         Args:
             b (0..1): Degree to which the brakes are applied. More than 0.9 blocks the wheels to zero rotation"""
         for w in self.wheels:
-            w.brake = b
+            diff = abs(b) - abs(w.brake)
+            if diff > 0.1: 
+                diff = 0.1
+            w.brake += diff    
+            #w.brake = b
 
     def steer(self, s):
         """control: steer
@@ -158,6 +164,7 @@ class Car:
             # Force
             forw = w.GetWorldVector( (0,1) )
             side = w.GetWorldVector( (1,0) )
+            
             v = w.linearVelocity
             vf = forw[0]*v[0] + forw[1]*v[1]  # forward speed
             vs = side[0]*v[0] + side[1]*v[1]  # side speed
@@ -174,7 +181,7 @@ class Car:
                 
                     
                 direction = -np.sign(w.omega)
-                if w.omega ==0:
+                if w.omega == 0:
                     direction = -1
                 val = BRAKE_FORCE*w.brake
 
@@ -189,48 +196,23 @@ class Car:
 
             
  
-            if self.lead_car:############################################################################
+            if self.lead_car:
                 w.omega = 500/27
             vr = w.omega*w.wheel_rad  # rotating wheel speed
-
-            self.speed = vr
+            if vr > 20: #speed limit
+                vr = 20
+            self.speed = self.hull.linearVelocity[1]
             f_force = -vf + vr        # force direction is direction of speed difference
-            
-            
-            
-            #print ('f_force at this palce is ', f_force)
+
             p_force = -vs
 
-            # Physically correct is to always apply friction_limit until speed is equal.
-            # But dt is finite, that will lead to oscillations if difference is already near zero.
-
-            # Random coefficient to cut oscillations in few steps (have no effect on friction_limit)
-            
             f_force *= 205000*SIZE*SIZE
             p_force *= 205000*SIZE*SIZE
             
             force = np.sqrt(np.square(f_force) + np.square(p_force))
 
-            # Skid trace
-            if abs(force) > 2.0*friction_limit:
-                if w.skid_particle and w.skid_particle.grass == grass and len(w.skid_particle.poly) < 30:
-                    w.skid_particle.poly.append( (w.position[0], w.position[1]) )
-                elif w.skid_start is None:
-                    w.skid_start = w.position
-                else:
-                    w.skid_particle = self._create_particle( w.skid_start, w.position, grass )
-                    w.skid_start = None
-            else:
-                w.skid_start = None
-                w.skid_particle = None
-
-            if abs(force) > friction_limit:
-                f_force /= force
-                p_force /= force
-                force = friction_limit  # Correct physics here
-                f_force *= force
-                p_force *= force
-
+        
+            
             w.omega -= dt*f_force*w.wheel_rad/WHEEL_MOMENT_OF_INERTIA #original
 
             w.ApplyForceToCenter((
@@ -238,7 +220,7 @@ class Car:
                 float(p_force*side[1]) + float(f_force*forw[1])), True )
         if not self.lead_car:
             
-            self.vr_reward.append(self.speed) 
+            self.vr_reward.append(self.speed)  
     def draw(self, viewer, draw_particles=True):
         if draw_particles:
             for p in self.particles:
