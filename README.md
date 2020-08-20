@@ -4,4 +4,4 @@
 
 
 
-#Then can use : ./run_etc.sh in the ddpg file to run the test
+#Then can use : ./run_etc.sh in the ddpg file to run the test.
