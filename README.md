@@ -10,7 +10,7 @@ OpenAI Gym
 Instruction for downloading OpenAI Gym:    https://gym.openai.com/docs/  
 
 Preparation  
-1. The two seperate .py file `car_racing.py` and `car_dynamic.py` are used to repalce the original  `car_racing.py` and `car_dynamic.py` in `OpenAI/gym/envs/box2d` (The location is the place where the OpenAI Gym is downloaded to) 
+1. The two seperate .py file `car_racing.py` and `car_dynamic.py` are used to repalce the original  `car_racing.py` and `car_dynamic.py` in `OpenAI/gym/envs/box2d` (The location is the place where the OpenAI Gym is downloaded to on your PC) 
 
 2. Open the Terminal on your PC and choose to the file by using  
 ```
@@ -20,6 +20,11 @@ and then type in the following operation to start the test
 ```
 ./run_etc.sh
 ```
+
+Change the save path of the log
+---------------
+
+
 The two files car_racing.py and car_dynamic.py should be used to repalce the ar_racing.py and car_dynamic.py in the OpenAI/gym/envs/box2d.
 
 
