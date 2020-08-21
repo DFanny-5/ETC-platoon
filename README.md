@@ -14,7 +14,7 @@ Preparation
 
 2. Open the Terminal on your PC and choose to the file by using  
 ```
-cd 
+cd ddpg
 ```
 ```
 ./run_etc.sh
