@@ -1,4 +1,5 @@
-# ETC-platoon
+Event-Trigger-Control (ETC) on vehicle platoon
+===========
 #The two files car_racing.py and car_dynamic.py should be used to repalce the ar_racing.py and car_dynamic.py in the OpenAI/gym/envs/box2d.
 
 
