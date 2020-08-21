@@ -16,6 +16,7 @@ Preparation
 ```
 cd ddpg
 ```
+and then type in the following operation to start the test
 ```
 ./run_etc.sh
 ```
