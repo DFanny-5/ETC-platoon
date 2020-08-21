@@ -9,8 +9,11 @@ How to install tensorflow with pip in the terminal:   https://www.tensorflow.org
 OpenAI Gym  
 Instruction for downloading OpenAI Gym:    https://gym.openai.com/docs/  
 
-
-#The two files car_racing.py and car_dynamic.py should be used to repalce the ar_racing.py and car_dynamic.py in the OpenAI/gym/envs/box2d.
+Preparation  
+```
+./run_etc.sh
+```
+The two files car_racing.py and car_dynamic.py should be used to repalce the ar_racing.py and car_dynamic.py in the OpenAI/gym/envs/box2d.
 
 
 
